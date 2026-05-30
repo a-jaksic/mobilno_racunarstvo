@@ -1,0 +1,93 @@
+package com.jaksa.restaurantreviews.photo.domain;
+
+import com.jaksa.restaurantreviews.restaurant.domain.Restaurant;
+import com.jaksa.restaurantreviews.review.domain.Review;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+
+import java.time.LocalDateTime;
+
+/**
+ * Represents a photo uploaded for a review or a restaurant gallery.
+ * Enforces a unique constraint on the file path to prevent duplicate files.
+ * @author Aleksa Jaksic (a-jaksic)
+ */
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Getter
+@Setter
+@Entity
+@Table(name = "photos", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"filePath"})
+})
+public class Photo {
+
+    /**
+     * Unique ID.
+     */
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    /**
+     * The file path where the photo is stored locally or on the server.
+     * Enforces a unique constraint to prevent duplicate filepath allocation.
+     * Must not be blank.
+     */
+    @NotBlank(message = "File path must not be blank")
+    private String filePath;
+
+    /**
+     * The timestamp indicating when the photo record was created.
+     * Must not be null.
+     */
+    @NotNull(message = "Creation timestamp is required")
+    private LocalDateTime createdAt;
+
+    /**
+     * The review associated with this photo, if applicable.
+     * Cannot be populated if a link with a restaurant exists.
+     */
+    @ManyToOne
+    @JoinColumn(name = "review_id")
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    private Review review;
+
+    /**
+     * The restaurant gallery associated with this photo, if applicable.
+     * Cannot be populated if a link with a review exists.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "restaurant_id")
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    private Restaurant restaurant;
+
+    /**
+     * Validates that the photo is exclusively linked to either a review or a restaurant.
+     * @throws java.lang.IllegalStateException If the photo is associated with a review and a restaurant, or
+     * if the photo is not associated with neither a review nor a restaurant
+     */
+    @PrePersist
+    @PreUpdate
+    public void validateConstraints() {
+        boolean hasReview = (review != null);
+        boolean hasRestaurant = (restaurant != null);
+
+        if (hasReview && hasRestaurant) {
+            throw new IllegalStateException(
+                    "Photo cannot be linked to both a Review and a Restaurant Gallery."
+            );
+        }
+
+        if (!hasReview && !hasRestaurant) {
+            throw new IllegalStateException(
+                    "Photo must belong to either a Review or a Restaurant Gallery."
+            );
+        }
+    }
+}
