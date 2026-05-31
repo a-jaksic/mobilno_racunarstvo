@@ -1,5 +1,6 @@
 package com.jaksa.restaurantreviews.user.service;
 
+import com.jaksa.restaurantreviews.security.dtos.MobileJwtResponse;
 import com.jaksa.restaurantreviews.security.service.AuthService;
 import com.jaksa.restaurantreviews.user.domain.Role;
 import com.jaksa.restaurantreviews.user.domain.User;
@@ -111,6 +112,48 @@ public class UserService {
         map.put("headers", headers);
         return map;
 
+    }
+
+    /**
+     * Updates existing user configuration on mobile app, resolves information changes and resets tokens.
+     * @param username username of the account being edited.
+     * @param userUpdateDTO UserUpdateDTO containing updated data fields.
+     * @return Map structure mapping updated response DTO data and updated tokens.
+     * @throws jakarta.persistence.EntityNotFoundException If the user is not found.
+     * @throws java.lang.IllegalArgumentException If the new email of the updated user is already taken
+     * or if the new password of the user is the same as the previous one.
+     */
+    public Map<String, Object> updateMobileCurrentUser(String username, UserUpdateDTO userUpdateDTO) {
+        User foundUser = userRepository.findByUsername(username)
+                .orElseThrow(() -> new EntityNotFoundException("No user found with given username"));
+
+        if (!foundUser.getEmail().equals(userUpdateDTO.email()) && userRepository.existsByEmail(userUpdateDTO.email())) {
+            throw new IllegalArgumentException("This email is already taken!");
+        }
+
+        if (userUpdateDTO.newPassword() != null && !userUpdateDTO.newPassword().isBlank()) {
+            if (!passwordEncoder.matches(userUpdateDTO.currentPassword(), foundUser.getPassword())) {
+                throw new IllegalArgumentException("Current password verification failed!");
+            }
+            foundUser.setPassword(passwordEncoder.encode(userUpdateDTO.newPassword()));
+        }
+
+        userMapper.updateEntityFromUpdateDto(userUpdateDTO, foundUser);
+        User savedUser = userRepository.save(foundUser);
+        UserResponseDTO savedUserDTO = userMapper.toResponseDTO(savedUser);
+
+        MobileJwtResponse mobileTokens = authService.createMobileAuthTokens(
+                org.springframework.security.core.userdetails.User.builder()
+                        .username(savedUser.getUsername())
+                        .password(savedUser.getPassword())
+                        .authorities("ROLE_" + savedUser.getRole().name())
+                        .build()
+        );
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("dto", savedUserDTO);
+        map.put("tokens", mobileTokens);
+        return map;
     }
 
 }

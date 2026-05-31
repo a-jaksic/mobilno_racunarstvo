@@ -27,6 +27,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = jwtUtils.extractTokenFromCookie(request, "access_token");
 
+        if (token == null) {
+            token = jwtUtils.extractTokenFromHeader(request);
+        }
+
         if (token != null && jwtUtils.isTokenValid(token)) {
             String username = jwtUtils.extractUsername(token);
 

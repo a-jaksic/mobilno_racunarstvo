@@ -1,5 +1,6 @@
 package com.jaksa.restaurantreviews.security.service;
 
+import com.jaksa.restaurantreviews.security.dtos.MobileJwtResponse;
 import com.jaksa.restaurantreviews.security.jwt.JwtUtils;
 import com.jaksa.restaurantreviews.user.domain.User;
 import jakarta.servlet.http.HttpServletRequest;
@@ -141,6 +142,35 @@ public class AuthService {
                 .build();
 
         return createAuthHeaders(userDetails);
+    }
+
+    /**
+     * Creates security authorizations for mobile users with jwts.
+     * @param userDetails authentication containing user information.
+     * @return MobileJwtResponse structure packed with access and refresh tokens.
+     */
+    public MobileJwtResponse createMobileAuthTokens(UserDetails userDetails) {
+        String accessToken = jwtUtils.createToken(userDetails, accessExpiration);
+        String refreshToken = jwtUtils.createToken(userDetails, refreshExpiration);
+        return new MobileJwtResponse(accessToken, refreshToken);
+    }
+
+    /**
+     * Decodes and validates session to issue a new standalone access token.
+     * @param refreshToken token used to renew access to the user of the app.
+     * @return MobileJwtResponse structure packed with access and refresh tokens.
+     * @throws org.springframework.security.authentication.BadCredentialsException If the refresh token is expired or invalid.
+     */
+    public MobileJwtResponse refreshMobileAccessToken(String refreshToken) {
+        if (refreshToken == null || !jwtUtils.isTokenValid(refreshToken)) {
+            throw new BadCredentialsException("Refresh token expired or invalid. Please login again.");
+        }
+
+        String username = jwtUtils.extractUsername(refreshToken);
+        List<SimpleGrantedAuthority> authorities = jwtUtils.extractAuthorities(refreshToken);
+        String newAccessToken = jwtUtils.createTokenFromRefresh(username, authorities, accessExpiration);
+
+        return new MobileJwtResponse(newAccessToken, refreshToken);
     }
 
 }

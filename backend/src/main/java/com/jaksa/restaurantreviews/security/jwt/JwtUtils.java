@@ -86,6 +86,13 @@ public class JwtUtils {
                 .compact();
     }
 
+    public String extractTokenFromHeader(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7); // Strip out "Bearer " to isolate the raw JWT string
+        }
+        return null;
+    }
 
     public boolean isTokenValid(String token) {
         try {

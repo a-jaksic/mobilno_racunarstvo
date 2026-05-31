@@ -70,4 +70,14 @@ public class UserController {
         }
     }
 
+    @PatchMapping("/mobile/me/update")
+    public ResponseEntity<Object> updateMobileCurrentUser(Authentication authentication, @RequestBody UserUpdateDTO userUpdateDTO) {
+        try {
+            Map<String, Object> responseData = userService.updateMobileCurrentUser(authentication.getName(), userUpdateDTO);
+            return ResponseEntity.status(HttpStatus.OK).body(responseData);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
 }
